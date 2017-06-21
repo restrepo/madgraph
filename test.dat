@@ -1,0 +1,5 @@
+n
+generate  p p > e+ e-
+output /tmp/111
+launch /tmp/111
+
