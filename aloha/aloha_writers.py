@@ -1,9 +1,11 @@
 try:
     import madgraph.iolibs.file_writers as writers 
     import madgraph.various.q_polynomial as q_polynomial
+    import madgraph.various.misc as misc
 except Exception:
     import aloha.file_writers as writers
     import aloha.q_polynomial as q_polynomial
+    import aloha.misc as misc
 
 import aloha
 import aloha.aloha_lib as aloha_lib
@@ -74,7 +76,16 @@ class WriteALOHA:
         if len(indices) == 1:
             return indices[0] + start + self.momentum_size
 
-        ind_name = self.routine.expr.lorentz_ind
+        try:
+            # When the expr is not a SplitCoefficient
+            ind_name = self.routine.expr.lorentz_ind
+        except:
+            # When the expr is a loop one, i.e. with SplitCoefficient
+            if len(set([tuple(expr.lorentz_ind) for expr in self.routine.expr.values()]))!=1:
+                raise Exception('All SplitCoefficients do not share the same indices names.')
+            for expr in self.routine.expr.values():
+              ind_name = expr.lorentz_ind
+              break
 
         if ind_name == ['I3', 'I2']:
             return  4 * indices[1] + indices[0] + start + self.momentum_size
@@ -266,7 +277,7 @@ class WriteALOHA:
             vartype = obj.vartype
         except Exception:
             return self.change_number_format(obj)
-        
+
         # The order is from the most current one to the les probable one
         if vartype == 1 : # AddVariable
             return self.write_obj_Add(obj, prefactor)
@@ -321,7 +332,11 @@ class WriteALOHA:
         file_str = StringIO()
         
         if prefactor and obj.prefactor != 1:
-            file_str.write(self.change_number_format(obj.prefactor))
+            formatted = self.change_number_format(obj.prefactor)
+            if formatted.startswith(('+','-')):
+                file_str.write('(%s)' % formatted)
+            else:
+                file_str.write(formatted)
             file_str.write('*(')
         else:
             file_str.write('(')
@@ -747,7 +762,11 @@ class ALOHAWriterForFortran(WriteALOHA):
         
         if not self.offshell:
             if coup_name == 'COUP':
-                out.write(' vertex = COUP*%s\n' % self.write_obj(numerator.get_rep([0])))
+                formatted = self.write_obj(numerator.get_rep([0]))
+                if formatted.startswith(('+','-')):
+                    out.write(' vertex = COUP*(%s)\n' % formatted)
+                else:
+                    out.write(' vertex = COUP*%s\n' % formatted)
             else:
                 out.write(' vertex = %s\n' % self.write_obj(numerator.get_rep([0])))
         else:
@@ -781,9 +800,12 @@ class ALOHAWriterForFortran(WriteALOHA):
                     coeff = ''
             to_order = {}  
             for ind in numerator.listindices():
+                formatted = self.write_obj(numerator.get_rep(ind))
+                if formatted.startswith(('+','-')):
+                    formatted = '(%s)*%s' % tuple(formatted.split('*',1))
                 to_order[self.pass_to_HELAS(ind)] = \
                         '    %s(%d)= %s%s\n' % (self.outname, self.pass_to_HELAS(ind)+1, 
-                        coeff, self.write_obj(numerator.get_rep(ind)))
+                        coeff, formatted)
             key = to_order.keys()
             key.sort()
             for i in key:
