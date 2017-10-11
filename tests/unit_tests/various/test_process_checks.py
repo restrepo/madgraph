@@ -110,7 +110,7 @@ class TestMatrixElementChecker(unittest.TestCase):
 
         myproc = base_objects.Process({'legs':myleglist,
                                        'model':self.base_model})
-
+        process_checks.clean_added_globals(process_checks.ADDED_GLOBAL)
         comparison = process_checks.check_processes(myproc)[0][0]
 
         self.assertEqual(len(comparison['values']), 8)
@@ -161,7 +161,7 @@ class TestMatrixElementChecker(unittest.TestCase):
         myproc = base_objects.ProcessDefinition({'legs':myleglist,
                                                  'model':self.base_model,
                                                  'orders':{'QED':0}})
-
+        process_checks.clean_added_globals(process_checks.ADDED_GLOBAL)
         comparisons, used_aloha = process_checks.check_processes(myproc)
         
         goal_value_len = [8, 2]
@@ -243,7 +243,7 @@ class TestLorentzInvariance(unittest.TestCase):
     """Test class for the Lorentz Invariance and boost_momenta"""
     
     def setUp(self):
-        sm_path = import_ufo.find_ufo_path('mssm')
+        sm_path = import_ufo.find_ufo_path('MSSM_SLHA2')
         self.base_model = import_ufo.import_model(sm_path)
         
     def test_boost_momenta(self):

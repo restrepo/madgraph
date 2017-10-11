@@ -57,6 +57,7 @@ class RunStatistics(dict):
           'Samurai_usage'      : 0,
           'Ninja_usage'        : 0,
           'Ninja_QP_usage'     : 0,
+          'COLLIER_usage'      : 0,
           'max_precision'      : 1.0e99,
           'min_precision'      : 0.0,
           'averaged_timing'    : 0.0,
@@ -119,6 +120,7 @@ class RunStatistics(dict):
         self['Golem_usage']       = u_codes[4]
         self['Samurai_usage']     = u_codes[5]
         self['Ninja_usage']       = u_codes[6]
+        self['COLLIER_usage']     = u_codes[7]        
         self['Ninja_QP_usage']    = u_codes[8]
         self['CutTools_QP_usage'] = u_codes[9]
         t_return_code = xml_node.getElementsByTagName('t_return_code')
@@ -177,6 +179,7 @@ class RunStatistics(dict):
           ('Golem',float(self['Golem_usage'])/self['n_madloop_calls']),
           ('IREGI',float(self['IREGI_usage'])/self['n_madloop_calls']),
           ('Samurai',float(self['Samurai_usage'])/self['n_madloop_calls']),
+          ('COLLIER',float(self['COLLIER_usage'])/self['n_madloop_calls']),          
           ('Ninja_DP',float(self['Ninja_usage'])/self['n_madloop_calls']),
           ('Ninja_QP',float(self['Ninja_QP_usage'])/self['n_madloop_calls'])]
 
@@ -660,7 +663,7 @@ function check_link(url,alt, id){
 </script>
 """ 
 
-def collect_result(cmd, folder_names):
+def collect_result(cmd, folder_names, jobs=None):
     """ """ 
 
     run = cmd.results.current['run_name']
@@ -682,16 +685,20 @@ def collect_result(cmd, folder_names):
                 if os.path.exists(pjoin(P_path, 'ajob.no_ps.log')):
                     continue
                                       
-                if not folder_names:
+                if not folder_names and not jobs:
                     name = 'G' + name
                     P_comb.add_results(name, pjoin(P_path,name,'results.dat'), mfactor)
-                else:
+                elif not jobs:
                     for folder in folder_names:
                         if 'G' in folder:
                             dir = folder.replace('*', name)
                         else:
                             dir = folder.replace('*', '_G' + name)
                         P_comb.add_results(dir, pjoin(P_path,dir,'results.dat'), mfactor)
+            if jobs:
+                for job in filter(lambda j: j['p_dir'] == Pdir, jobs):
+                    P_comb.add_results(os.path.basename(job['dirname']),\
+                                       pjoin(job['dirname'],'results.dat'))
         except IOError:
             continue
         P_comb.compute_values()
@@ -700,15 +707,15 @@ def collect_result(cmd, folder_names):
     return all
 
 
-def make_all_html_results(cmd, folder_names = []):
-    """ folder_names has been added for the amcatnlo runs """
+def make_all_html_results(cmd, folder_names = [], jobs=[]):
+    """ folder_names and jobs have been added for the amcatnlo runs """
     run = cmd.results.current['run_name']
     if not os.path.exists(pjoin(cmd.me_dir, 'HTML', run)):
         os.mkdir(pjoin(cmd.me_dir, 'HTML', run))
     
     unit = cmd.results.unit
     P_text = ""      
-    Presults = collect_result(cmd, folder_names=folder_names)
+    Presults = collect_result(cmd, folder_names=folder_names, jobs=jobs)
             
     
     for P_comb in Presults:

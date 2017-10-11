@@ -49,7 +49,6 @@ sys.path.append(os.path.join(root_path, os.path.pardir, 'Template', 'bin', 'inte
 import check_param_card 
 
 pjoin = os.path.join
-logger = logging.getLogger("madgraph.model")
 
 # Suffixes to employ for the various poles of CTparameters
 pole_dict = {-2:'2EPS',-1:'1EPS',0:'FIN'}
@@ -79,15 +78,15 @@ def find_ufo_path(model_name):
                     last_model_path = os.path.join(MG5DIR, p, model_name)
                 return os.path.join(MG5DIR, p, model_name)
     if os.path.isdir(model_name):
-        if last_model_path != os.path.join(MG5DIR, p, model_name):
+        if last_model_path != os.path.join(MG5DIR, model_name):
             logger.info("model loaded from: %s", os.path.join(os.getcwd(), model_name))
-            last_model_path = os.path.join(MG5DIR, p, model_name)
+            last_model_path = os.path.join(MG5DIR, model_name)
         return model_name   
     else:
         raise UFOImportError("Path %s is not a valid pathname" % model_name)    
     
 
-    return model_path
+    return
 
 def import_model(model_name, decay=False, restrict=True, prefix='mdl_',
                                                     complex_mass_scheme = None):
@@ -167,10 +166,18 @@ def import_model(model_name, decay=False, restrict=True, prefix='mdl_',
             # It might be that the default of the model is CMS.
             model.change_mass_to_complex_scheme(toCMS=False)
 
+        blocks = model.get_param_block()
         if model_name == 'mssm' or os.path.basename(model_name) == 'mssm':
             keep_external=True
+        elif all( b in blocks for b in ['USQMIX', 'SL2', 'MSOFT', 'YE', 'NMIX', 'TU','MSE2','UPMNS']):
+            keep_external=True
+        elif model_name == 'MSSM_SLHA2' or os.path.basename(model_name) == 'MSSM_SLHA2':
+            keep_external=True            
         else:
             keep_external=False
+        if keep_external:
+            logger.info('Detect SLHA2 format. keeping restricted parameter in the param_card')
+            
         model.restrict_model(restrict_file, rm_parameter=not decay,
            keep_external=keep_external, complex_mass_scheme=complex_mass_scheme)
         model.path = model_path
@@ -181,8 +188,7 @@ def import_model(model_name, decay=False, restrict=True, prefix='mdl_',
         else:
             # It might be that the default of the model (i.e. 'CMSParam') is CMS.
             model.change_mass_to_complex_scheme(toCMS=False)
-
-        
+      
     return model
     
 
@@ -1576,18 +1582,15 @@ class RestrictModel(model_reader.ModelReader):
         
         if self.get('name') == "mssm" and not keep_external:
             raise Exception
+
         self.restrict_card = param_card
         # Reset particle dict to ensure synchronized particles and interactions
         self.set('particles', self.get('particles'))
 
         # compute the value of all parameters
         # Get the list of definition of model functions, parameter values. 
-        self.set_parameters_and_couplings(param_card, 
+        model_definitions = self.set_parameters_and_couplings(param_card, 
                                         complex_mass_scheme=complex_mass_scheme)
-        
-        
-        # Keep the list of definition of model functions, parameter values. 
-        model_definitions = self.set_parameters_and_couplings(param_card)
         
         # Simplify conditional statements
         logger.debug('Simplifying conditional expressions')
@@ -1778,7 +1781,7 @@ class RestrictModel(model_reader.ModelReader):
         
         # define usefull variable to detect identical input
         block_value_to_var={} #(lhablok, value): list_of_var
-        mult_param = set([])       # key of the previous dict with more than one
+        mult_param = set([])  # key of the previous dict with more than one
                               #parameter.
                               
         #detect identical parameter and remove the duplicate parameter
@@ -1788,9 +1791,9 @@ class RestrictModel(model_reader.ModelReader):
                 continue
             if param.lhablock.lower() == 'decay':
                 continue
-            
             key = (param.lhablock, value)
             mkey =  (param.lhablock, -value)
+
             if key in block_value_to_var:
                 block_value_to_var[key].append((param,1))
                 mult_param.add(key)
@@ -1838,6 +1841,13 @@ class RestrictModel(model_reader.ModelReader):
                     if value == coupling:
                         pct[0]['counterterm'][pct[1]][key] = main
 
+
+                
+    def get_param_block(self):
+        """return the list of block defined in the param_card"""
+        
+        blocks = set([p.lhablock for p in self['parameters'][('external',)]])
+        return blocks
          
     def merge_iden_parameters(self, parameters, keep_external=False):
         """ merge the identical parameters given in argument.

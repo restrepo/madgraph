@@ -14,6 +14,7 @@ c
       include 'fks_info.inc'
       include 'run.inc'
       include 'cuts.inc'
+      include 'mint.inc'
       
       double precision ZERO,one
       parameter       (ZERO = 0d0)
@@ -67,12 +68,11 @@ c     Local for generating amps
 c
       double precision p(0:3,99), wgt, x(99), fx
       double complex wgt1(2)
-      double precision p1(0:3,99),xx(maxinvar)
-      integer ninvar, ndim, iconfig, minconfig, maxconfig
+      double precision p1(0:3,99)
+      integer ninvar, ndim,  minconfig, maxconfig
       common/tosigint/ndim
-      integer ncall,itmax,nconfigs,ntry, ngraphs
+      integer ncall,itmax,nconfigs,ntry
       integer ic(nexternal,maxswitch), jc(12),nswitch
-      double precision saveamp(maxamps)
       integer nmatch, ibase
       logical mtc, even
 
@@ -84,8 +84,6 @@ c
 c
 c     Global
 c
-      Double Precision amp2(maxamps), jamp2(0:maxamps)
-      common/to_amps/  amp2,       jamp2
       include 'coupl.inc'
 
       logical calculatedBorn
@@ -159,7 +157,10 @@ c helicity stuff
       common /cshowerscale2/shower_S_scale,shower_H_scale,ref_H_scale
      &     ,pt_hardness
 
-c      integer icomp
+      logical new_point
+      common /c_new_point/new_point
+
+c     integer icomp
 c
 c     DATA
 c
@@ -330,8 +331,11 @@ c x_to_f_arg subroutine
       endif
 
       do iconfig=bs_min,bs_max       ! Born configurations
+         ichan=1
+         iconfigs(1)=iconfig
 
-      call set_mc_matrices
+      call setfksfactor(.true.)
+c      call set_mc_matrices
 
       wgt=1d0
       ntry=1
@@ -342,6 +346,7 @@ c x_to_f_arg subroutine
       do jj=1,ndim
          x(jj)=ran2()
       enddo
+      new_point=.true.
       call generate_momenta(ndim,iconfig,wgt,x,p)
       calculatedBorn=.false.
       do while (( wgt.lt.0 .or. p(0,1).le.0d0 .or. p_born(0,1).le.0d0
@@ -349,6 +354,7 @@ c x_to_f_arg subroutine
          do jj=1,ndim
             x(jj)=ran2()
          enddo
+         new_point=.true.
          wgt=1d0
          call generate_momenta(ndim,iconfig,wgt,x,p)
          calculatedBorn=.false.
@@ -388,12 +394,14 @@ c x_to_f_arg subroutine
          do jj=1,ndim
             x(jj)=ran2()
          enddo
+         new_point=.true.
          call generate_momenta(ndim,iconfig,wgt,x,p)
          do while (( wgt.lt.0 .or. p(0,1).le.0d0) .and. ntry.lt.1000)
             wgt=1d0
             do jj=1,ndim
                x(jj)=ran2()
             enddo
+            new_point=.true.
             call generate_momenta(ndim,iconfig,wgt,x,p)
             ntry=ntry+1
          enddo
@@ -535,12 +543,14 @@ c in genps_fks_test.f
          do jj=1,ndim
             x(jj)=ran2()
          enddo
+         new_point=.true.
          call generate_momenta(ndim,iconfig,wgt,x,p)
          do while (( wgt.lt.0 .or. p(0,1).le.0d0) .and. ntry.lt.1000)
             wgt=1d0
             do jj=1,ndim
                x(jj)=ran2()
             enddo
+            new_point=.true.
             call generate_momenta(ndim,iconfig,wgt,x,p)
             ntry=ntry+1
          enddo

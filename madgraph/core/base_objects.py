@@ -237,7 +237,7 @@ class Particle(PhysicsObject):
         elif name == 'goldstone':
             return self['type'] == 'goldstone'
         elif name == 'propagating':
-            return self['line'] is not None
+            return self['line'] not in ['None',None] 
         else:
             return super(Particle, self).get(name)
 
@@ -348,7 +348,7 @@ class Particle(PhysicsObject):
             if not isinstance(value, str):
                 raise self.PhysicsObjectError, \
                     "Line type %s is not a string" % repr(value)
-            if value not in ['dashed', 'straight', 'wavy', 'curly', 'double','swavy','scurly','dotted']:
+            if value not in ['None','dashed', 'straight', 'wavy', 'curly', 'double','swavy','scurly','dotted']:
                 raise self.PhysicsObjectError, \
                    "Line type %s is unknown" % value
 
@@ -1223,6 +1223,10 @@ class Model(PhysicsObject):
             self['order_hierarchy'] = {}
             self['expansion_order'] = None
 
+        if name == 'name2pdg':
+            self['name2pgg'] = value
+            return
+
         result = Model.__bases__[0].set(self, name, value, force) # call the mother routine
 
         if name == 'particles':
@@ -1254,7 +1258,7 @@ class Model(PhysicsObject):
             if isinstance(id, int):
                 try:
                     return self.get("particle_dict")[id]
-                except Exception,error:
+                except Exception, error:
                     return None
             else:
                 if not hasattr(self, 'name2part'):
@@ -1270,9 +1274,8 @@ class Model(PhysicsObject):
         self.name2part = {}
         for part in self.get("particle_dict").values():
             self.name2part[part.get('name')] = part
-        
+            self.name2part[part.get('antiname')] = part
             
-
     def get_lorentz(self, name):
         """return the lorentz object from the associate name"""
         if hasattr(self, 'lorentz_name2obj'):
@@ -1587,15 +1590,20 @@ class Model(PhysicsObject):
         return [c for c in range(1, len(self.get('particles')) + 1) if \
                 c not in self.get('particle_dict').keys()][0]
                 
-    def write_param_card(self):
+
+    def write_param_card(self, filepath=None):
         """Write out the param_card, and return as string."""
         
         import models.write_param_card as writer
-        out = StringIO.StringIO() # it's suppose to be written in a file
-        param = writer.ParamCardWriter(self)
-        param.define_output_file(out)
-        param.write_card()
-        return out.getvalue()
+        if not filepath:
+            out = StringIO.StringIO() # it's suppose to be written in a file
+        else:
+            out = filepath
+        param = writer.ParamCardWriter(self, filepath=out)
+        if not filepath:
+            return out.getvalue()
+        else:
+            return param
         
     @ staticmethod
     def load_default_name():
@@ -2989,7 +2997,7 @@ class Process(PhysicsObject):
         # Add orders
         if self['orders']:
             to_add = []
-            for key in self['orders']:
+            for key in sorted(self['orders'].keys()):
                 if not print_weighted and key == 'WEIGHTED':
                     continue
                 value = int(self['orders'][key])
@@ -3012,9 +3020,9 @@ class Process(PhysicsObject):
                 mystr = mystr + " ".join(to_add) + ' '
 
         if self['constrained_orders']:
-            mystr = mystr + " ".join('%s%s%d' % (key, type, value) for 
-                                     (key,(value,type)) 
-                                         in self['constrained_orders'].items())  + ' '
+            mystr = mystr + " ".join('%s%s%d' % (key, 
+              self['constrained_orders'][key][1], self['constrained_orders'][key][0]) 
+                    for key in sorted(self['constrained_orders'].keys()))  + ' '
 
         # Add perturbation_couplings
         if self['perturbation_couplings']:
@@ -3031,7 +3039,7 @@ class Process(PhysicsObject):
         # Add squared orders
         if self['squared_orders']:
             to_add = []
-            for key in self['squared_orders'].keys():
+            for key in sorted(self['squared_orders'].keys()):
                 if not print_weighted and key == 'WEIGHTED':
                     continue
                 if key in self['constrained_orders']:

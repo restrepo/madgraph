@@ -904,10 +904,14 @@ c      write(*,*) 'nt_channel ',nt_channel
              else
                 ! might be negative because of numerical unstabilities
                 index_p2=itree(2,i-1)
-                if (index_p2.gt.0) then
+                if (index_p2.ge.0) then
                    m2_tchan(i)=m(index_p2)
                 else
-        write(*,*) 'Warning: m_2^2 is negative in t-channel branching ',m2_tchan(i) 
+                   if (m(index_p2).gt.5d-2)then
+                       m2_tchan(i) = 0d0
+                   else 
+        write(*,*) 'Warning: m_2^2 is negative in t-channel branching ',m2_tchan(i)
+                   endif 
                 endif
             endif
          ! extract phi
